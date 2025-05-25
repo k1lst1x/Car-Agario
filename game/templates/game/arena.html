@@ -1,0 +1,181 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Car-Agario</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #111; }
+    #arena { display: block; width: 100vw; height: 100vh; background: #222; }
+    #car-blue, #car-red { display: none; }
+  </style>
+</head>
+<body>
+  <canvas id="arena"></canvas>
+
+  <!-- SVG изображения -->
+  <img id="car-blue" src="{% static 'game/car-blue.svg' %}">
+  <img id="car-red" src="{% static 'game/car-red.svg' %}">
+
+  <div id="ui" style="position:fixed; top:10px; left:10px; color:#fff; font-family:sans-serif; font-size:14px;">
+    <div id="stats"></div>
+    <button onclick="upgrade('hp')">Upgrade HP</button>
+    <button onclick="upgrade('speed')">Upgrade Speed</button>
+    <button onclick="upgrade('damage')">Upgrade Damage</button>
+    <button onclick="upgrade('fire_rate')">Upgrade Fire Rate</button>
+    <div id="gold"></div>
+  </div>
+
+  <script>
+    const sessionId = "{{ session_id }}";
+    const ws = new WebSocket(`ws://${location.host}/ws/game/${sessionId}/`);
+
+    const canvas = document.getElementById("arena");
+    const ctx = canvas.getContext("2d");
+
+    const carBlueImg = document.getElementById('car-blue');
+    const carRedImg = document.getElementById('car-red');
+
+    function resize() {
+      canvas.width = innerWidth;
+      canvas.height = innerHeight;
+    }
+    window.addEventListener("resize", resize);
+    resize();
+
+    let myCarId = null;
+    let myStats = null;
+
+    let cameraX = 0, cameraY = 0;
+    const MAP_SIZE = 2000;
+
+    let cars = {};
+    let bullets = [];
+    let orbs = [];
+
+    ws.onmessage = ({ data }) => {
+      const msg = JSON.parse(data);
+
+      if (msg.type === "init") {
+        myCarId = msg.car_id;
+        myStats = msg.stats;
+        updateUI();
+      } else if (msg.type === "state") {
+        cars = msg.cars;
+        bullets = msg.bullets;
+        orbs = msg.orbs;
+        if (myCarId && cars[myCarId]) {
+          myStats.gold = cars[myCarId].gold;
+          updateUI();
+        }
+      } else if (msg.type === "upgrade_success") {
+        myStats[msg.stat] += {
+          hp: 100, speed: 10, damage: 10, fire_rate: 0.2
+        }[msg.stat];
+        myStats.gold = msg.gold;
+        updateUI();
+        alert(`Улучшено: ${msg.stat} до уровня ${msg.level}`);
+      } else if (msg.type === "upgrade_fail") {
+        alert(msg.reason);
+      }
+    };
+
+    function upgrade(stat) {
+      ws.send(JSON.stringify({ action: "upgrade", stat }));
+    }
+
+    function updateUI() {
+      document.getElementById('stats').innerText = `
+        HP: ${myStats.hp.toFixed(0)}
+        Speed: ${(myStats.speed * 3.6).toFixed(1)} km/h
+        Damage: ${myStats.damage}
+        Fire Rate: ${myStats.fire_rate.toFixed(2)} shots/s
+      `;
+      document.getElementById('gold').innerText = `Gold: ${myStats.gold}`;
+    }
+
+    canvas.addEventListener("click", ({ clientX: x, clientY: y }) => {
+      ws.send(JSON.stringify({ action: "move", target: { x: x + cameraX, y: y + cameraY } }));
+    });
+
+    window.addEventListener("keydown", e => {
+      if (e.code === "Space") ws.send(JSON.stringify({ action: "shoot" }));
+    });
+
+    function loop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (myCarId && cars[myCarId]) {
+        const me = cars[myCarId];
+        cameraX = me.x - canvas.width / 2;
+        cameraY = me.y - canvas.height / 2;
+
+        cameraX = Math.max(0, Math.min(cameraX, MAP_SIZE - canvas.width));
+        cameraY = Math.max(0, Math.min(cameraY, MAP_SIZE - canvas.height));
+      }
+
+      // Машины с SVG
+      for (const id in cars) {
+        const c = cars[id];
+        if (c.buffs && c.buffs.vanish && id != myCarId) continue;
+
+        const x = c.x - cameraX;
+        const y = c.y - cameraY;
+
+        const angle = Math.atan2(c.dy, c.dx) + Math.PI; // поворот на 180°
+
+        ctx.save();
+
+		// Перемещаем контекст рисования к центру машины
+		ctx.translate(x, y);
+
+		// Поворачиваем машину согласно направлению (угол уже правильно вычислен)
+		ctx.rotate(angle);
+
+		// Выбираем изображение машины
+		const img = id == myCarId ? carBlueImg : carRedImg;
+
+		// Настройте новый размер машины здесь, например 60x60 пикселей:
+		const CAR_SIZE = 100;
+
+		// Рисуем SVG-изображение, масштабированное и центрированное
+		ctx.drawImage(img, -CAR_SIZE / 2, -CAR_SIZE / 2, CAR_SIZE, CAR_SIZE);
+
+		ctx.restore();
+
+        // здоровье
+        ctx.fillStyle = "#0f0";
+        ctx.fillRect(x - 16, y - 20, 32 * (c.hp / 1200), 3);
+      }
+
+      // орбы
+      orbs.forEach(o => {
+        const x = o.x - cameraX;
+        const y = o.y - cameraY;
+
+        ctx.fillStyle = {
+          gold: "#ff0", damage: "#f00", velocity: "#0ff",
+          vanish: "#888", regen: "#0f0", xp: "#a0f",
+        }[o.kind];
+
+        ctx.beginPath();
+        ctx.arc(x, y, 6, 0, 2 * Math.PI);
+        ctx.fill();
+      });
+
+      // пули
+      bullets.forEach(b => {
+        const x = b.x - cameraX;
+        const y = b.y - cameraY;
+
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(x - 2, y - 2, 4, 4);
+      });
+
+      requestAnimationFrame(loop);
+    }
+
+    loop();
+  </script>
+</body>
+</html>
