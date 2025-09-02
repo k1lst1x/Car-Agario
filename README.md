@@ -2,36 +2,38 @@
 
 # 🚗 Car Agario — Multiplayer Battle Arena
 
-**Car Agario** — это динамичная браузерная онлайн-игра, где игроки на машинах соревнуются друг с другом на огромной карте. Собирайте бонусы, прокачивайте свою машину, стреляйте по соперникам и доминируйте на арене!
+**Car Agario** is a fast-paced browser-based online game where players battle each other on a massive map while driving cars. Collect bonuses, upgrade your vehicle, shoot opponents, and dominate the arena!
 
 ---
 
-## ✨ Основные фичи
+## ✨ Key Features
 
-- **🎮 Реалтайм мультиплеер:** WebSocket (Django Channels)
-- **🖥️ Камера:** Следит за игроком для полного погружения
-- **🚘 SVG-графика:** Красочные SVG-машины с поворотами и анимацией
-- **⚔️ Прокачка:** Улучшайте HP, скорость, урон и скорострельность
-- **💎 Орбы:** Подбирайте бонусы и усиливайтесь прямо на поле боя
-
----
-
-## 🛠️ Технологии
-
-- **Backend:** Django, Django Channels (WebSockets), Asyncio
-- **Frontend:** JavaScript, HTML5 Canvas, SVG
-- **База данных:** PostgreSQL / SQLite (по умолчанию)
+- **🎮 Real-time Multiplayer:** WebSocket (Django Channels)  
+- **🖥️ Dynamic Camera:** Follows the player for full immersion  
+- **🚘 SVG Graphics:** Colorful animated cars with smooth rotations  
+- **⚔️ Upgrades:** Improve HP, speed, damage, and fire rate  
+- **💎 Orbs:** Collect bonuses and power up directly on the battlefield  
 
 ---
 
-## 🚀 Быстрый старт
+## 🛠️ Tech Stack
+
+- **Backend:** Django, Django Channels (WebSockets), Asyncio  
+- **Frontend:** JavaScript, HTML5 Canvas, SVG  
+- **Database:** PostgreSQL / SQLite (default)  
+
+---
+
+## 🚀 Quick Start
 
 ```bash
 git clone https://github.com/yourusername/car-agario.git
 cd car-agario
 
-# Установка зависимостей
+# Install dependencies
 pip install -r requirements.txt
 
-# Запуск сервера
+# Run migrations and start server
+python manage.py migrate
 python manage.py runserver
+```
